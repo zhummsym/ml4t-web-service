@@ -6,6 +6,7 @@ import com.example.ml4t_spring_backend.model.User;
 import com.example.ml4t_spring_backend.repository.TransactionRepository;
 import com.example.ml4t_spring_backend.repository.UserRepository;
 import lombok.AllArgsConstructor;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,28 +39,31 @@ public class TransactionService {
             }
 
         } catch (IllegalStateException e) {
-            throw new IllegalStateException("Failed to fetch stock price", e);
+            throw new IllegalStateException(e.getMessage(), e);
         }
     }
 
     public Optional<List<Transaction>> getTransactionsByUserId (Long userId) {
-
-        Optional<List<Transaction>> transactionsOptional = transactionRepository.findByUserId(userId);
-        if (transactionsOptional.isPresent()) {
-            List<Transaction> transactions = transactionsOptional.get();
-            Map<String, BigDecimal> prices = new HashMap<>();
-            for (Transaction transaction : transactions) {
-                if (!prices.containsKey(transaction.getTicker())) {
-                    prices.put(transaction.getTicker(), stockService.getRealTimeStockPrice(transaction.getTicker()));
+        try {
+            Optional<List<Transaction>> transactionsOptional = transactionRepository.findByUserId(userId);
+            if (transactionsOptional.isPresent()) {
+                List<Transaction> transactions = transactionsOptional.get();
+                Map<String, BigDecimal> prices = new HashMap<>();
+                for (Transaction transaction : transactions) {
+                    if (!prices.containsKey(transaction.getTicker())) {
+                        prices.put(transaction.getTicker(), stockService.getRealTimeStockPrice(transaction.getTicker()));
+                    }
+                    transaction.setCurrentPrice(prices.get(transaction.getTicker()));
                 }
-                transaction.setCurrentPrice(prices.get(transaction.getTicker()));
+                return Optional.of(transactions);
+            } else {
+                return Optional.empty();
             }
-            return Optional.of(transactions);
-        }
-        else{
-            return Optional.empty();
-        }
 
+        } catch (DataAccessException e) {
+            throw new IllegalStateException("Database access error while fetching transactions", e);}
+        catch (Exception e) {
+            throw new IllegalStateException("Failed to fetch transactions", e);
+        }
     }
-
 }

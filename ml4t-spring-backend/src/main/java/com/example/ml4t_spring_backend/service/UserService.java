@@ -8,6 +8,7 @@ import com.example.ml4t_spring_backend.repository.UserRepository;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -31,13 +32,13 @@ public class UserService implements UserDetailsService {
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        System.out.println("email:" + email);
-        Optional<User> opt = userRepository.findByEmail(email);
-        if (opt.isPresent()) {
-            System.out.println(opt.get());
-            return opt.get();
+
+        Optional<User> userOptional = userRepository.findByEmail(email);
+        if (userOptional.isPresent()) {
+
+            return userOptional.get();
         } else {
-            System.out.println("123");
+
             throw new UsernameNotFoundException(String.format(USER_NOT_FOUND_MSG, email));
         }
 //        return userRepository.findByEmail(email).orElseThrow(() ->
@@ -48,7 +49,7 @@ public class UserService implements UserDetailsService {
 
         boolean userExists = userRepository.findByEmail(user.getEmail()).isPresent();
         if (userExists) {
-            throw new IllegalStateException("email already taken");
+            throw new EmailTakenException("email already taken");
         }
         String encodedPassword = bCryptPasswordEncoder.encode(user.getPassword());
         user.setPassword(encodedPassword);
@@ -75,34 +76,47 @@ public class UserService implements UserDetailsService {
     }
 
     public User updateUser(Long id, RegistrationRequest request) {
-        User user = userRepository.findById(id).orElseThrow(() -> new UserNotFoundException("User with id " + id + " was not found"));
-        if (request.getFirstName() != null && !request.getFirstName().isEmpty() && !Objects.equals(user.getFirstName(), request.getFirstName())) {
-            user.setFirstName((request.getFirstName()));
-        }
-        if (request.getLastName() != null && !request.getLastName().isEmpty() && !Objects.equals(user.getLastName(), request.getLastName())) {
-            user.setLastName((request.getLastName()));
-        }
-        if (request.getEmail() != null && !request.getEmail().isEmpty() && !Objects.equals(user.getEmail(), request.getEmail())) {
-            Optional<User> optionalUser = userRepository.findByEmail(request.getEmail());
-            if (optionalUser.isPresent()) {
-                User userExisted = optionalUser.get();
-                if (!Objects.equals(userExisted.getId(), user.getId())) {
-                    throw new EmailTakenException("email taken");
+        try{
+            User user = userRepository.findById(id).orElseThrow(() -> new UserNotFoundException("User with id " + id + " was not found"));
+            if (request.getFirstName() != null && !request.getFirstName().isEmpty() && !Objects.equals(user.getFirstName(), request.getFirstName())) {
+                user.setFirstName((request.getFirstName()));
+            }
+            if (request.getLastName() != null && !request.getLastName().isEmpty() && !Objects.equals(user.getLastName(), request.getLastName())) {
+                user.setLastName((request.getLastName()));
+            }
+            if (request.getEmail() != null && !request.getEmail().isEmpty() && !Objects.equals(user.getEmail(), request.getEmail())) {
+                Optional<User> optionalUser = userRepository.findByEmail(request.getEmail());
+                if (optionalUser.isPresent()) {
+                    User userExisted = optionalUser.get();
+                    if (!Objects.equals(userExisted.getId(), user.getId())) {
+                        throw new EmailTakenException("Email already taken");
+                    }
+
+                }
+                user.setEmail((request.getEmail()));
+            }
+            if (request.getPassword() != null && !request.getPassword().isEmpty()) {
+
+                if (!bCryptPasswordEncoder.matches(request.getPassword(), user.getPassword())) {
+                    String encodedPassword = bCryptPasswordEncoder.encode(request.getPassword());
+                    user.setPassword(encodedPassword);
                 }
 
             }
-            user.setEmail((request.getEmail()));
+            return userRepository.save(user);
+        }catch(EmailTakenException e) {
+            throw e;
         }
-        if (request.getPassword() != null && !request.getPassword().isEmpty()) {
-
-            if (!bCryptPasswordEncoder.matches(request.getPassword(), user.getPassword())) {
-                String encodedPassword = bCryptPasswordEncoder.encode(request.getPassword());
-                user.setPassword(encodedPassword);
-            }
+        catch (DataAccessException e) {
+            throw new IllegalStateException("Database access error while updating user", e);
+        } catch (IllegalStateException e) {
+            throw new IllegalStateException("Invalid input value", e);
+        } catch (Exception e) {
+            throw new IllegalStateException("An unexpected error occurred", e);
+        }
 
         }
-        return user;
-    }
+
     public User findUserById (Long id) {
         return userRepository.findById(id).orElseThrow(() -> new UserNotFoundException("User with id " + id + " was not found"));
     }

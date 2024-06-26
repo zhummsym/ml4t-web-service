@@ -1,5 +1,6 @@
 package com.example.ml4t_spring_backend.service;
 
+import com.example.ml4t_spring_backend.exception.EmailTakenException;
 import com.example.ml4t_spring_backend.model.RegistrationRequest;
 import com.example.ml4t_spring_backend.model.User;
 import com.example.ml4t_spring_backend.model.UserRole;
@@ -12,6 +13,7 @@ public class RegistrationService {
     private final UserService userService;
 
     public User register (RegistrationRequest request) {
+        try {
         return userService.addUser(
                 new User(
                         request.getFirstName(),
@@ -20,6 +22,10 @@ public class RegistrationService {
                         request.getPassword(),
                         UserRole.USER
                 )
-        );
+        );}
+        catch (EmailTakenException e) {
+            throw new EmailTakenException(e.getMessage());
+        }
+
     }
 }

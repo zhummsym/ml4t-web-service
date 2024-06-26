@@ -28,21 +28,19 @@ public class UserController {
     @PostMapping("/register")
     public ResponseEntity<User> register(@RequestBody RegistrationRequest request) {
 
-        User user = registrationService.register(request);
+            User user = registrationService.register(request);
+            return new ResponseEntity<>(user, HttpStatus.CREATED);
 
-        return new ResponseEntity<>(user, HttpStatus.CREATED);
+
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
-        try {
+    public ResponseEntity<User> login(@RequestBody LoginRequest loginRequest) {
+
             User user = userService.loginUser(loginRequest.getEmail(), loginRequest.getPassword());
             return new ResponseEntity<>(user, HttpStatus.OK);
-        } catch (BadCredentialsException e) {
-
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.UNAUTHORIZED);
-        }
     }
+
     @GetMapping("/all")
     public ResponseEntity<List<User>> getAllUsers () {
         List<User> users = userService.findAllUsers();
@@ -58,27 +56,17 @@ public class UserController {
     @PutMapping("/update/{id}")
     public ResponseEntity<User> updateUser(@PathVariable("id") Long id,
                                            @RequestBody RegistrationRequest request) {
-        try {
+
         User updateUser = userService.updateUser(id, request);
-        return new ResponseEntity<>(updateUser, HttpStatus.OK); }
-        catch (UserNotFoundException e) {
-            e.printStackTrace();
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
-        catch (EmailTakenException e) {
-            e.printStackTrace();
-            return new ResponseEntity<>(HttpStatus.CONFLICT);
-        }
+        return new ResponseEntity<>(updateUser, HttpStatus.OK);
+
     }
 
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<?> deleteEmployee(@PathVariable("id") Long id) {
-        try {
+
             userService.deleteUser(id);
             return new ResponseEntity<>(HttpStatus.OK);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+
     }
 }
